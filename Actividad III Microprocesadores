@@ -1,0 +1,240 @@
+.ORG 0000h      ; Inicio del programa en la dirección 0000h
+
+INICIO:  
+    ; Mostrar mensaje de inicio
+    LD HL, MSG_INIT   ; Cargo la dirección del mensaje de inicio en HL
+    CALL PRINT_STRING ; Llamo a la rutina que imprime cadenas de texto
+
+    ; Llamo a la rutina para generar los 20 números aleatorios
+    CALL GENERATE_NUMBERS ; Llamo a la subrutina que genera los números aleatorios
+
+    ; Mostrar los números generados
+    LD HL, NUMBERS     ; Cargo la dirección donde están almacenados los números
+    CALL DISPLAY_NUMBERS ; Llamo a la rutina que muestra los números
+
+    ; Preguntar si el usuario desea orden ascendente o descendente
+    LD HL, MSG_ORDER    ; Cargo el mensaje de orden en HL
+    CALL PRINT_STRING   ; Llamo a la rutina que lo imprime
+
+    CALL GET_USER_INPUT ; Llamo a la rutina para obtener la entrada del usuario
+    CP 'A'              ; Comparo si la entrada fue 'A' (ascendente)
+    JP Z, ORDER_ASCENDING ; Si fue 'A', salto a la rutina de orden ascendente
+    CP 'D'              ; Comparo si la entrada fue 'D' (descendente)
+    JP Z, ORDER_DESCENDING ; Si fue 'D', salto a la rutina de orden descendente
+
+ORDER_ASCENDING:
+    ; Ordeno los números en orden ascendente
+    CALL SORT_ASCENDING ; Llamo a la rutina para ordenar en forma ascendente
+    JP DISPLAY_ORDERED  ; Luego salto a la parte que muestra los números ordenados
+
+ORDER_DESCENDING:
+    ; Ordeno los números en orden descendente
+    CALL SORT_DESCENDING ; Llamo a la rutina para ordenar en forma descendente
+
+DISPLAY_ORDERED:
+    ; Mostrar los números ya ordenados
+    LD HL, NUMBERS      ; Cargo la dirección de los números
+    CALL DISPLAY_NUMBERS ; Llamo a la rutina que los muestra
+
+    ; Preguntar si desea repetir o terminar
+    LD HL, MSG_REPEAT   ; Cargo el mensaje que pregunta si repetir o terminar
+    CALL PRINT_STRING   ; Llamo a la rutina que lo imprime
+
+    CALL GET_USER_INPUT ; Obtengo la entrada del usuario
+    CP 'R'              ; Comparo si la entrada fue 'R' (repetir)
+    JP Z, INICIO        ; Si fue 'R', regreso al inicio del programa
+    CP 'T'              ; Comparo si la entrada fue 'T' (terminar)
+    JP Z, EXIT          ; Si fue 'T', salto al final para terminar
+
+EXIT:
+    ; Termino el programa
+    LD HL, MSG_EXIT     ; Cargo el mensaje de salida
+    CALL PRINT_STRING   ; Llamo a la rutina que lo imprime
+    HALT                ; Detengo el programa
+
+; -----------------------------------
+; Rutina: Generar números aleatorios
+; -----------------------------------
+GENERATE_NUMBERS:
+    LD HL, NUMBERS      ; HL apunta al array donde se guardarán los números generados
+    LD B, 20            ; Voy a generar 20 números
+    LD D, 5             ; Multiplicador 'a' en la fórmula para generar números aleatorios
+    LD E, 3             ; Incremento 'c'
+    LD H, 1             ; Inicializo la semilla 'X0' con 1
+
+GENERATE_LOOP:
+    LD A, H             ; Cargar el valor actual de la semilla en A
+    ; Fórmula: (a * Xn) + c
+    LD L, A             ; Guardar la semilla actual en L
+    LD A, D             ; Cargo el multiplicador 'a' en A
+    CALL MUL_L_A        ; Multiplico L por A, el resultado se guarda en A
+    ADD A, E            ; Sumo el incremento 'c'
+    ; El resultado se ajusta automáticamente a 8 bits
+    LD (HL), A          ; Guardo el valor generado en la memoria
+    INC HL              ; Paso a la siguiente posición en memoria
+    LD H, A             ; Actualizo la semilla con el nuevo valor generado
+    DJNZ GENERATE_LOOP  ; Repetir hasta generar los 20 números
+    RET                 ; Retorno a la parte principal del programa
+
+; -----------------------------------
+; Rutina: Mostrar los números generados
+; -----------------------------------
+DISPLAY_NUMBERS:
+    LD B, 20            ; Voy a mostrar 20 números
+DISPLAY_LOOP:
+    LD A, (HL)          ; Cargo un número desde la memoria
+    CALL PRINT_DECIMAL  ; Llamo a la rutina que lo imprime en decimal
+    CALL PRINT_SPACE    ; Imprimo un espacio después del número
+    INC HL              ; Paso al siguiente número
+    DJNZ DISPLAY_LOOP   ; Repetir hasta mostrar los 20 números
+    RET                 ; Retorno
+
+; -----------------------------------
+; Rutina: Orden ascendente
+; -----------------------------------
+SORT_ASCENDING:
+    LD BC, 19           ; Bucle externo, necesito 19 comparaciones
+ASC_LOOP:
+    LD HL, NUMBERS      ; HL apunta al primer número del array
+    LD DE, NUMBERS+1    ; DE apunta al segundo número del array
+    LD C, 19            ; Comparaciones internas
+ASC_INNER_LOOP:
+    LD A, (HL)          ; Cargo el primer número en A
+    INC HL              ; Paso al siguiente número
+    LD B, (HL)          ; Cargo el siguiente número en B
+    CP B                ; Comparo A con B
+    JP NC, NO_SWAP_ASC   ; Si ya están en orden, no hago nada
+    ; Si no están en orden, intercambiar los valores
+    LD A, (HL)          ; Cargo el valor actual en HL
+    LD (HL), B          ; Guardo el valor de B en la posición actual
+    LD B, A             ; Muevo el valor original de HL a B
+NO_SWAP_ASC:
+    INC HL              ; Paso al siguiente número
+    DEC C               ; Decremento el contador de comparaciones
+    JP NZ, ASC_INNER_LOOP ; Repetir las comparaciones internas
+    DEC B               ; Decremento el contador externo
+    JP NZ, ASC_LOOP     ; Repetir el bucle externo
+    RET                 ; Retorno cuando termine de ordenar
+
+; -----------------------------------
+; Rutina: Orden descendente
+; -----------------------------------
+SORT_DESCENDING:
+    LD BC, 19           ; Igual que en ascendente, 19 comparaciones externas
+DESC_LOOP:
+    LD HL, NUMBERS      ; Apunto al primer número
+    LD DE, NUMBERS+1    ; Apunto al segundo número
+    LD C, 19            ; Comparaciones internas
+DESC_INNER_LOOP:
+    LD A, (HL)          ; Cargo el primer número
+    INC HL              ; Paso al siguiente
+    LD B, (HL)          ; Cargo el siguiente número
+    CP B                ; Comparo A con B
+    JP C, NO_SWAP_DESC  ; Si ya están en orden, no hago nada
+    ; Si no están en orden, los intercambio
+    LD A, (HL)
+    LD (HL), B
+    LD B, A
+NO_SWAP_DESC:
+    INC HL
+    DEC C
+    JP NZ, DESC_INNER_LOOP
+    DEC B
+    JP NZ, DESC_LOOP
+    RET                 ; Retorno cuando termine de ordenar
+
+; -----------------------------------
+; Rutina: Obtener entrada del usuario
+; -----------------------------------
+GET_USER_INPUT:
+    LD C, 0x02          ; Configurar el puerto 0x02 para la entrada (teclado)
+    IN A, (C)           ; Leer entrada desde el teclado
+    RET                 ; Retornar con la entrada
+
+; -----------------------------------
+; Rutina: Imprimir cadenas de texto
+; -----------------------------------
+PRINT_STRING:
+    LD A, (HL)
+    CP 0                ; Fin de la cadena
+    RET Z               ; Terminar si llegamos al final de la cadena (0)
+    CALL PRINT_CHAR     ; Imprimir carácter
+    INC HL              ; Pasar al siguiente carácter
+    JP PRINT_STRING     ; Repetir hasta el final de la cadena
+    RET
+
+; -----------------------------------
+; Rutina: Imprimir un carácter
+; -----------------------------------
+PRINT_CHAR:
+    LD C, 0x01          ; Configurar puerto 0x01 para la salida (pantalla)
+    OUT (C), A          ; Enviar el carácter al puerto 0x01 (pantalla)
+    RET
+
+; -----------------------------------
+; Rutina: Imprimir un espacio
+; -----------------------------------
+PRINT_SPACE:
+    LD A, ' '           ; Cargar el espacio en A
+    CALL PRINT_CHAR     ; Llamar a la rutina para imprimir el espacio
+    RET
+
+; -----------------------------------
+; Rutina: Imprimir un número en decimal
+; -----------------------------------
+PRINT_DECIMAL:
+    LD E, A             ; Guardar el número en E para la conversión
+    CALL CONVERT_TO_DECIMAL ; Llamar a la rutina que convierte el número a decimal
+    LD A, D             ; Imprimir las centenas
+    CALL PRINT_CHAR
+    LD A, E             ; Imprimir las decenas
+    CALL PRINT_CHAR
+    LD A, L             ; Imprimir las unidades
+    CALL PRINT_CHAR
+    RET
+
+; -----------------------------------
+; Rutina: Convertir número en decimal
+; -----------------------------------
+CONVERT_TO_DECIMAL:
+    LD D, '0'           ; Inicializo centenas en '0'
+    LD E, '0'           ; Inicializo decenas en '0'
+    LD L, '0'           ; Inicializo unidades en '0'
+
+    ; Convertir centenas
+    CP 100
+    JP C, CONVERT_TENS  ; Si el número es menor que 100, pasar a decenas
+    SUB 100             ; Restar 100
+    INC D               ; Aumentar las centenas
+
+CONVERT_TENS:
+    CP 10
+    JP C, CONVERT_UNITS ; Si el número es menor que 10, pasar a unidades
+    SUB 10              ; Restar 10
+    INC E               ; Aumentar las decenas
+
+CONVERT_UNITS:
+    ADD A, '0'          ; Convertir las unidades a ASCII
+    LD L, A             ; Guardar el resultado en L
+    RET                 ; Retornar
+
+; -----------------------------------
+; Mensajes en memoria
+; -----------------------------------
+MSG_INIT:      DB 'Iniciando generacion de numeros...', 0
+MSG_ORDER:     DB 'Ascendente (A) o Descendente (D)?', 0
+MSG_REPEAT:    DB 'Repetir (R) o Terminar (T)?', 0
+MSG_EXIT:      DB 'Saliendo del programa.', 0
+
+; -----------------------------------
+; Área de memoria para los números generados
+NUMBERS:       DS 20    ; Reservo espacio para 20 números
+
+; -----------------------------------
+; Rutina para multiplicar L por A
+; -----------------------------------
+MUL_L_A:
+    LD B, L            ; Guardar L en B
+    LD L, 0
+    ADD HL, HL         ; Duplicar L
+    RET
